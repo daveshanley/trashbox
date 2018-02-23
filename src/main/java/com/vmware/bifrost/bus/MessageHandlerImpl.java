@@ -4,10 +4,15 @@ import com.vmware.bifrost.bus.model.Message;
 import com.vmware.bifrost.bus.model.MessageObjectHandlerConfig;
 import com.vmware.bifrost.bus.model.MessageType;
 import io.reactivex.Observable;
+import io.reactivex.Scheduler;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 /**
@@ -24,6 +29,8 @@ public class MessageHandlerImpl<T> implements MessageHandler<T> {
     private Observable<Message> errors;
     private Disposable sub;
     private Disposable errorSub;
+    private ExecutorService threadPoolExecutor;
+    private Scheduler scheduler;
 
     public MessageHandlerImpl(
             boolean requestStream, MessageObjectHandlerConfig config, MessagebusService bus) {
@@ -31,6 +38,14 @@ public class MessageHandlerImpl<T> implements MessageHandler<T> {
         this.config = config;
         this.bus = bus;
         logger = LoggerFactory.getLogger(this.getClass());
+        //int threadCount = Runtime.getRuntime().availableProcessors();
+
+        int threadCount = 32;
+
+        threadPoolExecutor = Executors.newFixedThreadPool(threadCount);
+        scheduler = Schedulers.from(threadPoolExecutor);
+
+        //System.out.println("Total Numbner Of Processors! " + threadCount);
 
     }
 
@@ -56,11 +71,11 @@ public class MessageHandlerImpl<T> implements MessageHandler<T> {
         }
         this.errors = this.bus.getErrorChannel(this.config.getReturnChannel(), this.getClass().getName());
         if (this.config.isSingleResponse()) {
-            this.sub = this.channel.take(1).subscribe(this.createHandler(successHandler));
-            this.errorSub = this.errors.take(1).subscribe(this.createHandler(errorHandler));
+            this.sub = this.channel.observeOn(scheduler).take(1).subscribe(this.createHandler(successHandler));
+            this.errorSub = this.errors.subscribeOn(scheduler).take(1).subscribe(this.createHandler(errorHandler));
         } else {
-            this.sub = this.channel.subscribe(this.createHandler(successHandler));
-            this.errorSub = this.errors.subscribe(this.createHandler(errorHandler));
+            this.sub = this.channel.observeOn(scheduler).subscribe(this.createHandler(successHandler));
+            this.errorSub = this.errors.observeOn(scheduler).subscribe(this.createHandler(errorHandler));
         }
         return this.sub;
     }

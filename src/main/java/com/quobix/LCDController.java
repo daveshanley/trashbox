@@ -7,11 +7,22 @@ public class LCDController {
 
     public LCD phidget;
     MessagebusService bus;
+    byte[] heart;
 
     public LCDController(MessagebusService bus) throws Exception {
         this.bus = bus;
         phidget = new LCD();
         this.registerListeners();
+        heart = new byte[]{
+                0, 0, 0, 0, 0,
+                0, 1, 0, 1, 0,
+                1, 1, 1, 1, 1,
+                1, 1, 1, 1, 1,
+                0, 1, 1, 1, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0
+        };
     }
 
     private void registerListeners() throws Exception {
@@ -23,6 +34,8 @@ public class LCDController {
                         phid.setScreenSize(LCDScreenSize.DIMENSIONS_4X40);
                         phid.setBacklight(1.0);
                         phid.setContrast(0.5);
+                        phid.setCursorBlink(true);
+
                         bus.sendResponse("lcd-ready", true);
                     }
                 } catch (PhidgetException ex) {
@@ -38,7 +51,10 @@ public class LCDController {
         Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
         phidget.setIsRemote(true);
         System.out.println("Connecting to LCD.");
+
         phidget.open(5000);
+
+
     }
 
     public void writeTextLine(int line, int startChar, String text) throws PhidgetException {

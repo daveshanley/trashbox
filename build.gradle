@@ -1,5 +1,5 @@
 group 'com.quobix'
-version '1.0-SNAPSHOT'
+version '0.1'
 
 apply plugin: 'java'
 
@@ -10,6 +10,8 @@ repositories {
 
 }
 
+
+
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
     compile "io.reactivex.rxjava2:rxjava:2.0.7"
@@ -19,4 +21,26 @@ dependencies {
     compile group: "com.fasterxml.jackson.core", name: "jackson-databind", version: "2.8.8"
     compile "com.fasterxml.jackson.module:jackson-module-jsonSchema:2.8.8"
     compile fileTree(dir: 'libs', include: '*.jar')
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Version': version,
+                   'Main-Class': 'com.quobix.TrashBox'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+jar {
+    into('lib') {
+        from 'libs'
+    }
+    manifest {
+        attributes(
+                'Main-Class': 'com.quobix.TrashBox',
+                "Class-Path": configurations.compile.collect { it.getName() }.join(' ')
+        )
+    }
 }
