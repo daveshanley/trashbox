@@ -1,22 +1,17 @@
 package com.quobix;
 
 import com.phidget22.*;
+import com.quobix.model.BusEnabledListener;
 import com.quobix.model.LEDCommand;
 import com.vmware.bifrost.bus.MessagebusService;
 import com.vmware.bifrost.bus.model.Message;
 
 import java.util.UUID;
 
-class BusEnabledListener implements AttachListener {
+class LEDListener extends BusEnabledListener implements AttachListener {
 
-    private MessagebusService bus;
-    private int channel;
-    private UUID id;
-
-    public BusEnabledListener(MessagebusService bus, int channel, UUID id) {
-        this.bus = bus;
-        this.channel = channel;
-        this.id = id;
+    public LEDListener(MessagebusService bus, int channel, UUID id) {
+        super(bus, channel, id);
     }
 
     @Override
@@ -81,13 +76,13 @@ public class LEDController {
     }
 
     private void registerListeners() throws Exception {
-        phidget.addAttachListener(new BusEnabledListener(this.bus, this.channel, this.id));
+        phidget.addAttachListener(new LEDListener(this.bus, this.channel, this.id));
     }
 
     public void initController() throws Exception {
         this.phidget.setDeviceSerialNumber(serial);
-        Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
-        this.phidget.setIsRemote(true);
+        //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
+        //this.phidget.setIsRemote(true);
         this.phidget.setChannel(channel);
         this.phidget.setHubPort(hubPort);
     }
@@ -95,7 +90,7 @@ public class LEDController {
     public void connect() {
         String op = "error connecting on channel " + this.channel;
         try {
-            this.phidget.open(10000);
+            this.phidget.open();
         } catch (Exception e) {
             System.out.println(op);
             e.printStackTrace();

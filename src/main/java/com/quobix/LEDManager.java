@@ -26,7 +26,7 @@ public class LEDManager {
     UUID id;
 
 
-    public LEDManager(MessagebusService bus, int hubPort, int hubSerial, int ledCount) throws Exception {
+    public LEDManager(MessagebusService bus, int hubPort, int hubSerial, int ledCount) {
         this.executor = Executors.newFixedThreadPool(10);
         this.scheduledeExecutor = Executors.newScheduledThreadPool(10);
         this.bus = bus;
@@ -34,9 +34,12 @@ public class LEDManager {
         this.hubSerial = hubSerial;
         this.ledCount = ledCount;
         this.id = UUID.randomUUID();
-        this.listenForReady();
-        this.createControllers();
-
+        try {
+            this.listenForReady();
+            this.createControllers();
+        }catch (Exception exp) {
+            exp.printStackTrace();
+        }
     }
 
     private void listenForReady() {
