@@ -1,5 +1,6 @@
 package com.quobix;
 
+import com.phidget22.LogLevel;
 import com.phidget22.Net;
 import com.phidget22.ServerType;
 import com.quobix.model.ButtonController;
@@ -44,6 +45,8 @@ public class MainController {
     AudioStream bleep1Stream;
     AudioStream bleep2Stream;
 
+    BeeperService beeperService;
+
     int managerCount = 0;
 
     private boolean lcdReady = false;
@@ -55,11 +58,15 @@ public class MainController {
     private MessagebusService bus;
 
     public MainController() throws Exception {
-        //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
+        //com.phidget22.Log.enable(LogLevel.DEBUG, null);
+
+
+        Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
 
         this.executor = Executors.newFixedThreadPool(10);
 
         bus = new MessagebusService();
+        beeperService = new BeeperService(bus);
 
         redLedControllerId = UUID.randomUUID();
         greenLedControllerId = UUID.randomUUID();
@@ -81,14 +88,15 @@ public class MainController {
                 greenButtonLEDController = new LEDController(this.bus, serial, 30, 1, greenLedControllerId);
 
                 System.out.println("Creating red button controller");
-                redButton = new ButtonController(bus, 2, 0, 370813, redLedControllerId, redButtonLEDController);
+                redButton = new ButtonController(bus, 3, 0, 370813, redLedControllerId, redButtonLEDController);
 
-
-                System.out.println("Creating green button controller");
-                greenButton = new ButtonController(bus, 2, 1, 370813, greenLedControllerId, greenButtonLEDController);
 
                 System.out.println("Connecting red button controller");
                 redButton.connect();
+
+                System.out.println("Creating green button controller");
+                greenButton = new ButtonController(bus, 3, 1, 370813, greenLedControllerId, greenButtonLEDController);
+
 
                 System.out.println("Connecting green button controller");
                 greenButton.connect();
@@ -120,6 +128,12 @@ public class MainController {
                                 UUID id = (UUID) msg.getPayload();
                                 if(id.equals(this.redLedControllerId)) {
                                     this.playBleep1();
+                                    try {
+                                        beeperService.findDavesPhone();
+                                    } catch (Exception e){
+                                        e.printStackTrace();
+                                    }
+
                                 }
                                 if(id.equals(this.greenLedControllerId)) {
                                     this.playBleep2();
@@ -163,7 +177,7 @@ public class MainController {
                         return;
 
                     System.out.println("We're all ready, waiting 5 seconds then turning it all on.");
-                    //Thread.sleep(5000);
+                    Thread.sleep(5000);
 
                     this.bus.sendResponse("led-control",
                             new LEDCommand(LEDCommandType.ON, 0, true));
@@ -228,12 +242,15 @@ public class MainController {
 
     private void playBleep1() {
         try {
+
+
             AudioPlayer.player.stop(bleep1Stream);
-            Runtime.getRuntime().exec("aplay sfx/bleep1.wav");
+
             this.resetAudio();
             AudioPlayer.player.start(bleep1Stream);
+            Runtime.getRuntime().exec("aplay sfx/bleep1.wav");
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 
@@ -244,7 +261,7 @@ public class MainController {
             AudioPlayer.player.start(bleep2Stream);
             Runtime.getRuntime().exec("aplay sfx/bleep2.wav");
         } catch (Exception e) {
-            e.printStackTrace();
+           // e.printStackTrace();
         }
     }
 
