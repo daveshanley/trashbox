@@ -3,6 +3,7 @@ package com.quobix;
 import com.phidget22.LogLevel;
 import com.phidget22.Net;
 import com.phidget22.ServerType;
+import com.quobix.model.ActivePhone;
 import com.quobix.model.ButtonController;
 import com.quobix.model.LEDCommand;
 import com.quobix.model.LEDCommandType;
@@ -13,7 +14,6 @@ import sun.audio.AudioStream;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,6 +46,7 @@ public class MainController {
     AudioStream bleep2Stream;
 
     BeeperService beeperService;
+    ActivePhone activePhone;
 
     int managerCount = 0;
 
@@ -58,7 +59,7 @@ public class MainController {
     private MessagebusService bus;
 
     public MainController() throws Exception {
-        //com.phidget22.Log.enable(LogLevel.DEBUG, null);
+        com.phidget22.Log.enable(LogLevel.DEBUG, null);
 
 
         Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
@@ -67,6 +68,8 @@ public class MainController {
 
         bus = new MessagebusService();
         beeperService = new BeeperService(bus);
+
+        
 
         redLedControllerId = UUID.randomUUID();
         greenLedControllerId = UUID.randomUUID();
@@ -87,26 +90,14 @@ public class MainController {
                 redButtonLEDController = new LEDController(this.bus, serial, 31, 1, redLedControllerId);
                 greenButtonLEDController = new LEDController(this.bus, serial, 30, 1, greenLedControllerId);
 
-                System.out.println("Creating red button controller");
                 redButton = new ButtonController(bus, 3, 0, 370813, redLedControllerId, redButtonLEDController);
-
-
-                System.out.println("Connecting red button controller");
                 redButton.connect();
 
-                System.out.println("Creating green button controller");
                 greenButton = new ButtonController(bus, 3, 1, 370813, greenLedControllerId, greenButtonLEDController);
-
-
-                System.out.println("Connecting green button controller");
                 greenButton.connect();
 
                 redButtonLEDController.connect();
                 greenButtonLEDController.connect();
-
-
-                System.out.println("red id: " + this.redLedControllerId);
-                System.out.println("green id: " + this.greenLedControllerId);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -119,6 +110,33 @@ public class MainController {
 
 
     }
+    private void switchActivePhone() throws Exception {
+        switch(this.activePhone) {
+
+            case Dave:
+                this.activePhone = ActivePhone.Michelle;
+                lcdController.writeMichellePhoneSelected();
+                break;
+
+            case Michelle:
+                this.activePhone = ActivePhone.Dave;
+                lcdController.writeDavePhoneSelected();
+                break;
+        }
+    }
+
+    private void triggerFindPhone() throws Exception {
+        switch(this.activePhone) {
+
+            case Dave:
+                beeperService.findDavesPhone();
+                break;
+
+            case Michelle:
+                beeperService.findMichellesPhone();
+                break;
+        }
+    }
 
     private void listenForButtonsClicked() {
         this.bus.listenStream("button-click-events",
@@ -127,16 +145,20 @@ public class MainController {
                             () -> {
                                 UUID id = (UUID) msg.getPayload();
                                 if(id.equals(this.redLedControllerId)) {
-                                    this.playBleep1();
                                     try {
-                                        beeperService.findDavesPhone();
+                                        this.playBleep1();
+                                        this.triggerFindPhone();
                                     } catch (Exception e){
                                         e.printStackTrace();
                                     }
-
                                 }
                                 if(id.equals(this.greenLedControllerId)) {
-                                    this.playBleep2();
+                                    try {
+                                        this.playBleep2();
+                                        this.switchActivePhone();
+                                    } catch (Exception e){
+                                        e.printStackTrace();
+                                    }
                                 }
                             }
                     );
@@ -177,49 +199,30 @@ public class MainController {
                         return;
 
                     System.out.println("We're all ready, waiting 5 seconds then turning it all on.");
+                    this.lcdController = new LCDController(this.bus);
+                    this.lcdController.initScreen();
+                    this.appReady();
+
                     Thread.sleep(5000);
 
                     this.bus.sendResponse("led-control",
                             new LEDCommand(LEDCommandType.ON, 0, true));
 
-
-                    this.stateSwitch = true;
-                    Runnable task = () -> {
-                        if (this.stateSwitch) {
-                            System.out.println("Turning Off.");
-                            this.bus.sendResponse("led-control", new LEDCommand(LEDCommandType.OFF, 0, true));
-                            this.stateSwitch = false;
-                        } else {
-                            System.out.println("Turning On.");
-                            this.bus.sendResponse("led-control", new LEDCommand(LEDCommandType.ON, 0, true));
-                            this.stateSwitch = true;
-                        }
-
-                    };
-                    //this.scheduledeExecutor.scheduleAtFixedRate(task, 3000, 2000, TimeUnit.MILLISECONDS);
                 }
         );
+    }
+
+    private void appReady() {
+        this.scheduledeExecutor.scheduleAtFixedRate(new WednesdayNightReminder(), 3000, 2000, TimeUnit.MILLISECONDS);
     }
 
     private void listenForLCDReady() {
         bus.listenStream("lcd-ready",
                 (val) -> {
                     System.out.println("LCD is now ready");
-                    lcdController.writeTextLine(0, 0, "#####");
-                    lcdController.writeTextLine(1, 2, "#");
-                    lcdController.writeTextLine(2, 2, "#");
-                    lcdController.writeTextLine(3, 2, "#");
-
-
-                    lcdController.writeTextLine(0, 6, "####");
-                    lcdController.writeTextLine(1, 6, "#  #");
-                    lcdController.writeTextLine(2, 6, "###");
-                    lcdController.writeTextLine(3, 6, "#  #");
-
-                    lcdController.writeTextLine(0, 12, "#");
-                    lcdController.writeTextLine(1, 12, "#");
-                    lcdController.writeTextLine(2, 12, "#");
-                    lcdController.writeTextLine(3, 12, "#");
+                    lcdController.setMaxBrightness();
+                    lcdController.writeTrashboxWelcome();
+                    this.activePhone = ActivePhone.Dave;
 
                 }
         );
@@ -227,9 +230,6 @@ public class MainController {
 
     private void resetAudio() {
         try {
-
-
-
             bleep1File = new File("sfx/bleep1.wav");
             bleep2File = new File("sfx/bleep2.wav");
             bleep1Stream = new AudioStream(new FileInputStream(bleep1File));
@@ -240,12 +240,10 @@ public class MainController {
 
     }
 
-    private void playBleep1() {
+    private void playBleep2() {
         try {
 
-
             AudioPlayer.player.stop(bleep1Stream);
-
             this.resetAudio();
             AudioPlayer.player.start(bleep1Stream);
             Runtime.getRuntime().exec("aplay sfx/bleep1.wav");
@@ -254,7 +252,7 @@ public class MainController {
         }
     }
 
-    private void playBleep2() {
+    private void playBleep1() {
         try {
             AudioPlayer.player.stop(bleep2Stream);
             this.resetAudio();

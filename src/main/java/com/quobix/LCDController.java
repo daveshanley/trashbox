@@ -5,29 +5,23 @@ import com.vmware.bifrost.bus.MessagebusService;
 
 public class LCDController {
 
-    public LCD phidget;
+    public LCD lcdOne;
+    public LCD lcdTwo;
+
     MessagebusService bus;
-    byte[] heart;
+    int count = 0;
 
     public LCDController(MessagebusService bus) throws Exception {
         this.bus = bus;
-        phidget = new LCD();
+        lcdOne = new LCD();
+
         this.registerListeners();
-        heart = new byte[]{
-                0, 0, 0, 0, 0,
-                0, 1, 0, 1, 0,
-                1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1,
-                0, 1, 1, 1, 0,
-                0, 0, 1, 0, 0,
-                0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0
-        };
     }
 
     private void registerListeners() throws Exception {
-        phidget.addAttachListener(new AttachListener() {
+        AttachListener listener = new AttachListener() {
             public void onAttach(AttachEvent ae) {
+                System.out.println("LCD-attached!");
                 LCD phid = (LCD) ae.getSource();
                 try {
                     if (ae.getSource().getDeviceID() == DeviceID.PN_1204) {
@@ -35,30 +29,58 @@ public class LCDController {
                         phid.setBacklight(1.0);
                         phid.setContrast(0.5);
                         phid.setCursorBlink(true);
-
                         bus.sendResponse("lcd-ready", true);
+
                     }
                 } catch (PhidgetException ex) {
                     System.out.println(ex.getDescription());
                 }
             }
-        });
+        };
+
+        lcdOne.addAttachListener(listener);
+
     }
 
     public void initScreen() throws Exception {
-        phidget.setDeviceSerialNumber(329585);
-        phidget.setChannel(0);
-        Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
-        phidget.setIsRemote(true);
+        lcdOne.setDeviceSerialNumber(329585);
+        lcdOne.setChannel(0);
+        lcdOne.setIsRemote(true);
+
+
+
         System.out.println("Connecting to LCD.");
 
-        phidget.open(5000);
+        lcdOne.open(5000);
+
 
 
     }
 
     public void writeTextLine(int line, int startChar, String text) throws PhidgetException {
-        phidget.writeText(LCDFont.DIMENSIONS_5X8, startChar, line, text);
-        phidget.flush();
+        lcdOne.writeText(LCDFont.DIMENSIONS_5X8, startChar, line, text);
+        lcdOne.flush();
+    }
+
+    public void writeTrashboxWelcome() throws Exception {
+        this.writeTextLine(0, 0, "Welcome To TrashBox");
+    }
+
+    public void writeDavePhoneSelected() throws Exception {
+        lcdOne.clear();
+        this.writeTextLine(0, 0, "Dave's Phone Selected");
+        this.writeTextLine(2, 0, "Push the red button to find it!");
+    }
+
+    public void writeMichellePhoneSelected() throws Exception {
+        lcdOne.clear();
+        this.writeTextLine(0, 0, "Michelle's Phone Selected");
+        this.writeTextLine(2, 0, "Push the red button to find it!");
+    }
+
+    public void setMaxBrightness() throws Exception {
+        this.lcdOne.setBacklight(1.0);
+
+
     }
 }

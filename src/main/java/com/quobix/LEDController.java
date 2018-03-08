@@ -82,7 +82,7 @@ public class LEDController {
     public void initController() throws Exception {
         this.phidget.setDeviceSerialNumber(serial);
         //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
-        //this.phidget.setIsRemote(true);
+        //this.lcdOne.setIsRemote(true);
         this.phidget.setChannel(channel);
         this.phidget.setHubPort(hubPort);
     }
@@ -103,12 +103,12 @@ public class LEDController {
     }
 
     public void off() throws Exception {
-        //phidget.setChannel(channel);
+        //lcdOne.setChannel(channel);
         phidget.setState(false);
     }
 
     public void close() throws Exception {
-       // phidget.close();
+       // lcdOne.close();
     }
 
 }
