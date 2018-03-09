@@ -15,10 +15,7 @@ import sun.audio.AudioStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class MainController {
 
@@ -53,23 +50,25 @@ public class MainController {
     private boolean lcdReady = false;
     boolean stateSwitch = false;
 
+    ScheduledFuture lcdThread;
+
     int buttonCountReady = 0;
     int serial = 370813;
 
     private MessagebusService bus;
 
     public MainController() throws Exception {
-        com.phidget22.Log.enable(LogLevel.DEBUG, null);
+        //com.phidget22.Log.enable(LogLevel.DEBUG, null);
 
 
-        Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
+        //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
 
         this.executor = Executors.newFixedThreadPool(10);
 
         bus = new MessagebusService();
         beeperService = new BeeperService(bus);
 
-        
+      
 
         redLedControllerId = UUID.randomUUID();
         greenLedControllerId = UUID.randomUUID();
@@ -80,15 +79,16 @@ public class MainController {
         this.listenForButtonsActive();
         this.listenForButtonsReady();
         this.listenForButtonsClicked();
+        this.listenForTrashControl();
 
-        this.scheduledeExecutor = Executors.newScheduledThreadPool(32);
+        this.scheduledeExecutor = Executors.newScheduledThreadPool(3);
 
 
         Runnable task = () -> {
 
             try {
-                redButtonLEDController = new LEDController(this.bus, serial, 31, 1, redLedControllerId);
-                greenButtonLEDController = new LEDController(this.bus, serial, 30, 1, greenLedControllerId);
+                redButtonLEDController = new LEDController(this.bus, serial, 31, 1, redLedControllerId, true);
+                greenButtonLEDController = new LEDController(this.bus, serial, 30, 1, greenLedControllerId, true);
 
                 redButton = new ButtonController(bus, 3, 0, 370813, redLedControllerId, redButtonLEDController);
                 redButton.connect();
@@ -123,6 +123,10 @@ public class MainController {
                 lcdController.writeDavePhoneSelected();
                 break;
         }
+        lcdController.setMaxBrightness();
+        this.lcdThread.cancel(true);
+        this.startLcdTimer();
+        this.lightUpButtons();
     }
 
     private void triggerFindPhone() throws Exception {
@@ -136,6 +140,64 @@ public class MainController {
                 beeperService.findMichellesPhone();
                 break;
         }
+    }
+
+    private void dimLCDAndRestoreDefaultMessage() {
+        this.executor.submit(
+                () -> {
+                    try {
+                        this.lcdController.setNoBrightness();
+                        this.lcdController.writeTrashboxWelcome();
+                    } catch (Exception e) {
+                        System.out.println(e);
+                    }
+                    this.disableButtonLights();
+                }
+        );
+    }
+
+
+    private void lightUpButtons() {
+        this.executor.submit(
+                () -> {
+                    this.bus.sendResponse("led-control-button",
+                            new LEDCommand(LEDCommandType.ON, 0, true, true));
+                }
+        );
+    }
+
+    private void disableButtonLights() {
+        this.executor.submit(
+                () -> {
+                    this.bus.sendResponse("led-control-button",
+                            new LEDCommand(LEDCommandType.OFF, 0, true, true));
+                }
+        );
+    }
+
+    private void listenForTrashControl() {
+        this.bus.listenStream("trash-control-start",
+                (Message msg) -> {
+                    this.executor.submit(
+                            () -> {
+                                this.bus.sendResponse("led-control",
+                                        new LEDCommand(LEDCommandType.ON, 0, true, true));
+                            }
+                    );
+                }
+        );
+
+        this.bus.listenStream("trash-control-stop",
+                (Message msg) -> {
+                    this.executor.submit(
+                            () -> {
+                                this.bus.sendResponse("led-control",
+                                        new LEDCommand(LEDCommandType.OFF, 0, true, true));
+                            }
+                    );
+                }
+        );
+
     }
 
     private void listenForButtonsClicked() {
@@ -197,23 +259,28 @@ public class MainController {
                     this.managerCount++;
                     if (this.managerCount < 2)
                         return;
-
-                    System.out.println("We're all ready, waiting 5 seconds then turning it all on.");
                     this.lcdController = new LCDController(this.bus);
                     this.lcdController.initScreen();
                     this.appReady();
-
-                    Thread.sleep(5000);
-
-                    this.bus.sendResponse("led-control",
-                            new LEDCommand(LEDCommandType.ON, 0, true));
-
                 }
         );
     }
 
+    private void startLcdTimer() {
+        lcdThread = scheduledeExecutor.scheduleWithFixedDelay(
+                () -> {
+                    this.dimLCDAndRestoreDefaultMessage();
+                },
+                10,
+                10,
+                TimeUnit.SECONDS);
+    }
+
     private void appReady() {
-        this.scheduledeExecutor.scheduleAtFixedRate(new WednesdayNightReminder(), 3000, 2000, TimeUnit.MILLISECONDS);
+        scheduledeExecutor.scheduleAtFixedRate(new WednesdayNightReminder(bus), 3000, 1000, TimeUnit.MILLISECONDS);
+        startLcdTimer();
+        lightUpButtons();
+
     }
 
     private void listenForLCDReady() {

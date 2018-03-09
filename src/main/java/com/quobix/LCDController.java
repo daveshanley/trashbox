@@ -2,6 +2,7 @@ package com.quobix;
 
 import com.phidget22.*;
 import com.vmware.bifrost.bus.MessagebusService;
+import com.vmware.bifrost.bus.model.Message;
 
 public class LCDController {
 
@@ -28,7 +29,7 @@ public class LCDController {
                         phid.setScreenSize(LCDScreenSize.DIMENSIONS_4X40);
                         phid.setBacklight(1.0);
                         phid.setContrast(0.5);
-                        phid.setCursorBlink(true);
+                        //phid.setCursorBlink(true);
                         bus.sendResponse("lcd-ready", true);
 
                     }
@@ -39,13 +40,12 @@ public class LCDController {
         };
 
         lcdOne.addAttachListener(listener);
-
     }
 
     public void initScreen() throws Exception {
         lcdOne.setDeviceSerialNumber(329585);
         lcdOne.setChannel(0);
-        lcdOne.setIsRemote(true);
+        //lcdOne.setIsRemote(true);
 
 
 
@@ -63,24 +63,32 @@ public class LCDController {
     }
 
     public void writeTrashboxWelcome() throws Exception {
+        lcdOne.clear();
         this.writeTextLine(0, 0, "Welcome To TrashBox");
     }
 
     public void writeDavePhoneSelected() throws Exception {
         lcdOne.clear();
+        lcdOne.setBacklight(1.0);
         this.writeTextLine(0, 0, "Dave's Phone Selected");
         this.writeTextLine(2, 0, "Push the red button to find it!");
     }
 
     public void writeMichellePhoneSelected() throws Exception {
         lcdOne.clear();
+        lcdOne.setBacklight(1.0);
         this.writeTextLine(0, 0, "Michelle's Phone Selected");
         this.writeTextLine(2, 0, "Push the red button to find it!");
     }
 
     public void setMaxBrightness() throws Exception {
-        this.lcdOne.setBacklight(1.0);
+        lcdOne.setBacklight(1.0);
+        lcdOne.setContrast(0.7);
+    }
 
+    public void setNoBrightness() throws Exception {
+        lcdOne.setBacklight(0);
+        lcdOne.setContrast(1);
 
     }
 }

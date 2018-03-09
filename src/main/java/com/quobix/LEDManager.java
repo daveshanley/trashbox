@@ -51,7 +51,7 @@ public class LEDManager {
 
                         System.out.println("sending led-manager ready");
                         this.bus.sendResponse("ledmanager-ready",
-                                new LEDCommand(LEDCommandType.ON, 0, true));
+                                new LEDCommand(LEDCommandType.ON, 0, true, true));
 
                     }
                 }
@@ -65,7 +65,7 @@ public class LEDManager {
             final int index = i;
             executor.submit(() -> {
                 try {
-                    controllers[index] = new LEDController(bus, hubSerial, index, hubPort, this.id);
+                    controllers[index] = new LEDController(bus, hubSerial, index, hubPort, this.id, false);
                     controllers[index].connect();
                 } catch (Exception exp) {
                     exp.printStackTrace();

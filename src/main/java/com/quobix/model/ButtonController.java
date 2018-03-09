@@ -89,8 +89,8 @@ public class ButtonController {
 
     public void initController() throws Exception {
         this.input.setDeviceSerialNumber(serial);
-        Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
-        this.input.setIsRemote(true);
+        //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
+        //this.input.setIsRemote(true);
         this.input.setChannel(channel);
         this.input.setHubPort(hub);
     }
