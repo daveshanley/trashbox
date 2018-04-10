@@ -1,6 +1,5 @@
 package com.quobix;
 
-import com.phidget22.LogLevel;
 import com.phidget22.Net;
 import com.phidget22.ServerType;
 import com.quobix.model.ActivePhone;
@@ -33,7 +32,7 @@ public class MainController {
     ButtonController redButton;
     ButtonController greenButton;
 
-    ScheduledExecutorService scheduledeExecutor;
+    ScheduledExecutorService scheduledExecutor;
     ExecutorService executor;
 
 
@@ -58,18 +57,15 @@ public class MainController {
     private MessagebusService bus;
 
     public MainController() throws Exception {
-        //com.phidget22.Log.enable(LogLevel.DEBUG, null);
-
-
-        //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
+        Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
 
         this.executor = Executors.newFixedThreadPool(10);
 
         bus = new MessagebusService();
         beeperService = new BeeperService(bus);
 
-      
-
+        // set beeper service details.
+        
         redLedControllerId = UUID.randomUUID();
         greenLedControllerId = UUID.randomUUID();
 
@@ -81,7 +77,7 @@ public class MainController {
         this.listenForButtonsClicked();
         this.listenForTrashControl();
 
-        this.scheduledeExecutor = Executors.newScheduledThreadPool(3);
+        this.scheduledExecutor = Executors.newScheduledThreadPool(3);
 
 
         Runnable task = () -> {
@@ -140,6 +136,7 @@ public class MainController {
                 beeperService.findMichellesPhone();
                 break;
         }
+        this.flashThatTrash();
     }
 
     private void dimLCDAndRestoreDefaultMessage() {
@@ -267,7 +264,7 @@ public class MainController {
     }
 
     private void startLcdTimer() {
-        lcdThread = scheduledeExecutor.scheduleWithFixedDelay(
+        lcdThread = scheduledExecutor.scheduleWithFixedDelay(
                 () -> {
                     this.dimLCDAndRestoreDefaultMessage();
                 },
@@ -277,7 +274,7 @@ public class MainController {
     }
 
     private void appReady() {
-        scheduledeExecutor.scheduleAtFixedRate(new WednesdayNightReminder(bus), 3000, 1000, TimeUnit.MILLISECONDS);
+        scheduledExecutor.scheduleAtFixedRate(new WednesdayNightReminder(bus), 3000, 1000, TimeUnit.MILLISECONDS);
         startLcdTimer();
         lightUpButtons();
 
@@ -295,39 +292,48 @@ public class MainController {
         );
     }
 
-    private void resetAudio() {
-        try {
-            bleep1File = new File("sfx/bleep1.wav");
-            bleep2File = new File("sfx/bleep2.wav");
-            bleep1Stream = new AudioStream(new FileInputStream(bleep1File));
-            bleep2Stream = new AudioStream(new FileInputStream(bleep2File));
-        } catch (Exception exp) {
-            exp.printStackTrace();
-        }
-
-    }
 
     private void playBleep2() {
+        System.out.println("** playing beep 2");
         try {
-
-            AudioPlayer.player.stop(bleep1Stream);
-            this.resetAudio();
-            AudioPlayer.player.start(bleep1Stream);
             Runtime.getRuntime().exec("aplay sfx/bleep1.wav");
+
         } catch (Exception e) {
             //e.printStackTrace();
         }
     }
 
     private void playBleep1() {
+        System.out.println("** playing beep 1");
         try {
-            AudioPlayer.player.stop(bleep2Stream);
-            this.resetAudio();
-            AudioPlayer.player.start(bleep2Stream);
             Runtime.getRuntime().exec("aplay sfx/bleep2.wav");
+
         } catch (Exception e) {
            // e.printStackTrace();
         }
+    }
+
+    private void flashThatTrash() {
+        this.executor.submit(
+                () -> {
+                    try {
+                        this.bus.sendResponse("trash-control-start", true);
+                        Thread.sleep(20);
+                        this.bus.sendResponse("trash-control-stop", true);
+                        Thread.sleep(20);
+                        this.bus.sendResponse("trash-control-start", true);
+                        Thread.sleep(20);
+                        this.bus.sendResponse("trash-control-stop", true);
+                        Thread.sleep(20);
+                        this.bus.sendResponse("trash-control-start", true);
+                        Thread.sleep(20);
+                        this.bus.sendResponse("trash-control-stop", true);
+                        Thread.sleep(20);
+                    } catch (InterruptedException exp) {
+                        // who cares?
+                    }
+                }
+        );
     }
 
 

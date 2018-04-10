@@ -103,7 +103,7 @@ public class LEDController {
     public void initController() throws Exception {
         this.phidget.setDeviceSerialNumber(serial);
         //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
-        //this.lcdOne.setIsRemote(true);
+        this.phidget.setIsRemote(true);
         this.phidget.setChannel(channel);
         this.phidget.setHubPort(hubPort);
     }

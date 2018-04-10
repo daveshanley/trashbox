@@ -45,7 +45,7 @@ public class LCDController {
     public void initScreen() throws Exception {
         lcdOne.setDeviceSerialNumber(329585);
         lcdOne.setChannel(0);
-        //lcdOne.setIsRemote(true);
+        lcdOne.setIsRemote(true);
 
 
 
