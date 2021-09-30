@@ -70,7 +70,7 @@ public class BeeperService {
 
     public BeeperService(MessagebusService bus) throws Exception {
         this.bus = bus;
-        this.serviceUri = "http://10.0.1.211:9443//beep";
+        this.serviceUri = "http://192.168.2.1:8080/beep";
     }
 
     private void postBeepRequest(String request) throws Exception {

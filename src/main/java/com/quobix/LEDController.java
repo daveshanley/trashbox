@@ -6,20 +6,26 @@ import com.quobix.model.LEDCommand;
 import com.vmware.bifrost.bus.MessagebusService;
 import com.vmware.bifrost.bus.model.Message;
 
+import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 class LEDListener extends BusEnabledListener implements AttachListener {
 
     private boolean isButton;
+    private DigitalOutput phid;
+    ExecutorService executor;
 
     public LEDListener(MessagebusService bus, int channel, UUID id, boolean isButton) {
         super(bus, channel, id);
         this.isButton = isButton;
+        executor = Executors.newFixedThreadPool(5);
     }
 
     @Override
     public void onAttach(AttachEvent attachEvent) {
-        DigitalOutput phid = (DigitalOutput) attachEvent.getSource();
+        phid = (DigitalOutput) attachEvent.getSource();
         try {
             if (phid.getDeviceClass() != DeviceClass.VINT) {
                 System.out.println("channel " + phid.getChannel() + " on device " + phid.getDeviceSerialNumber() + " attached");
@@ -42,7 +48,11 @@ class LEDListener extends BusEnabledListener implements AttachListener {
 
                         }
                         if (executeCommand) {
-                            this.handleState(phid, command);
+                            // fire in a thread.
+                            executor.execute(() -> {
+                                this.handleState(phid, command);
+                            });
+
                         }
                     }
             );
@@ -62,14 +72,43 @@ class LEDListener extends BusEnabledListener implements AttachListener {
         }
     }
 
-    private void handleState(DigitalOutput output, LEDCommand command) throws Exception{
-        switch (command.getType()) {
-            case ON:
-                output.setState(true);
-                break;
-            case OFF:
-                output.setState(false);
-                break;
+    private void switchOn() throws Exception {
+        try {
+            phid.setState(true);
+        } catch (Exception exp) {
+            phid.setState(false);
+        }
+    }
+
+    private void switchOff() throws Exception {
+        try {
+            phid.setState(false);
+        } catch (Exception exp) {
+            phid.setState(false);
+        }
+    }
+
+    private void handleState(DigitalOutput output, LEDCommand command) {
+
+        try {
+
+            switch (command.getType()) {
+                case ON:
+                    this.switchOn();
+                    break;
+                case OFF:
+                    this.switchOff();
+                    break;
+            }
+
+        } catch (Exception exp) {
+
+            System.out.println("Warning, setting state timed out, resetting controller");
+            try {
+                this.switchOff();
+            } catch (Exception expOff) {
+                // I don't care.
+            }
         }
     }
 }
@@ -103,7 +142,7 @@ public class LEDController {
     public void initController() throws Exception {
         this.phidget.setDeviceSerialNumber(serial);
         //Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
-        //this.lcdOne.setIsRemote(true);
+        this.phidget.setIsRemote(true);
         this.phidget.setChannel(channel);
         this.phidget.setHubPort(hubPort);
     }
@@ -119,17 +158,70 @@ public class LEDController {
 
     }
 
-    public void on() throws Exception {
-        phidget.setState(true);
+    public void on() {
+        try {
+            phidget.setState(true);
+        } catch (Exception exp) {
+            // don't care.
+        }
     }
 
-    public void off() throws Exception {
+    public void off() {
         //lcdOne.setChannel(channel);
-        phidget.setState(false);
+        try {
+            phidget.setState(false);
+        } catch (Exception exp) {
+            // don't care;
+        }
     }
 
     public void close() throws Exception {
         // lcdOne.close();
+    }
+
+    public void fadeDown() {
+
+        try {
+
+            double cycleValue = 0.99;
+            int decimalPlaces = 2;
+            on();
+            while (cycleValue > 0) {
+
+                cycleValue -= 0.01;
+                BigDecimal cycleCalc = new BigDecimal(cycleValue);
+                cycleCalc = cycleCalc.setScale(decimalPlaces, BigDecimal.ROUND_DOWN);
+                cycleValue = cycleCalc.doubleValue();
+
+                phidget.setDutyCycle(cycleValue);
+
+            }
+            off();
+        } catch (Exception exp) {
+            // don't care.
+        }
+    }
+
+    public void fadeUp(){
+
+        try {
+
+            double cycleValue = 0.0;
+            int decimalPlaces = 2;
+            phidget.setDutyCycle(cycleValue);
+            on();
+            while (cycleValue > 0) {
+
+                cycleValue += 0.01;
+                BigDecimal cycleCalc = new BigDecimal(cycleValue);
+                cycleCalc = cycleCalc.setScale(decimalPlaces, BigDecimal.ROUND_DOWN);
+                cycleValue = cycleCalc.doubleValue();
+                phidget.setDutyCycle(cycleValue);
+            }
+
+        } catch (Exception exp) {
+            // really don't care.
+        }
     }
 
 }
