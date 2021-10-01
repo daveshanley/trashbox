@@ -8,11 +8,11 @@ import com.quobix.model.LEDCommand;
 import com.quobix.model.LEDCommandType;
 import com.vmware.bifrost.bus.MessagebusService;
 import com.vmware.bifrost.bus.model.Message;
-import sun.audio.AudioPlayer;
-import sun.audio.AudioStream;
+
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.AudioSystem;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -47,9 +47,9 @@ public class MainController {
     File bleep2File;
     File sirenAlarmFile;
 
-    AudioStream bleep1Stream;
-    AudioStream bleep2Stream;
-    AudioStream alertSirenStream;
+    Clip bleep1Clip;
+    Clip bleep2Clip;
+    Clip alertSirenClip;
 
     BeeperService beeperService;
     ActivePhone activePhone;
@@ -79,6 +79,7 @@ public class MainController {
     private int featureButtonClickCount = 0;
 
     public MainController() throws Exception {
+
         //com.phidget22.Log.enable(LogLevel.DEBUG, null);
         Net.enableServerDiscovery(ServerType.DEVICE_REMOTE);
 
@@ -87,12 +88,12 @@ public class MainController {
         bus = new MessagebusService();
         beeperService = new BeeperService(bus);
 
-        beeperService.setDaveId("dave.shanley@icloud.com");
-        beeperService.setDavePhoneName("iPhone");
-        beeperService.setDavePass("CottonFox0");
-//        beeperService.setMichelleId("mgrs84@gmail.com");
-//        beeperService.setMichellePass("09M@gnuM05");
-//        beeperService.setMichellePhoneName("MichellePhoneX");
+        beeperService.setDaveId("*");
+        beeperService.setDavePhoneName("*");
+        beeperService.setDavePass("*");
+        beeperService.setMichelleId("*");
+        beeperService.setMichellePass("*");
+        beeperService.setMichellePhoneName("*");
 
         redLedControllerId = UUID.randomUUID();
         greenLedControllerId = UUID.randomUUID();
@@ -426,9 +427,18 @@ public class MainController {
             bleep1File = new File("sfx/bleep1.wav");
             bleep2File = new File("sfx/bleep2.wav");
             sirenAlarmFile = new File("sfx/alert.wav");
-            bleep1Stream = new AudioStream(new FileInputStream(bleep1File));
-            bleep2Stream = new AudioStream(new FileInputStream(bleep2File));
-            alertSirenStream = new AudioStream(new FileInputStream(sirenAlarmFile));
+
+            var b1Stream = AudioSystem.getAudioInputStream(bleep1File);
+            bleep1Clip = AudioSystem.getClip();
+            bleep1Clip.open(b1Stream);
+
+            var b2Stream = AudioSystem.getAudioInputStream(bleep2File);
+            bleep2Clip = AudioSystem.getClip();
+            bleep2Clip.open(b2Stream);
+
+            var sirenStream = AudioSystem.getAudioInputStream(sirenAlarmFile);
+            alertSirenClip = AudioSystem.getClip();
+            alertSirenClip.open(sirenStream);
 
         } catch (Exception exp) {
             exp.printStackTrace();
@@ -447,9 +457,10 @@ public class MainController {
 
         // when running on local dev
         try {
-            AudioPlayer.player.stop(bleep1Stream);
+            bleep1Clip.stop();
+            bleep1Clip.close();
             this.resetAudio();
-            AudioPlayer.player.start(bleep1Stream);
+            bleep1Clip.start();
         } catch (Exception e) {
             // e.printStackTrace();
         }
@@ -469,9 +480,10 @@ public class MainController {
 
          //when running on local dev
         try {
-            AudioPlayer.player.stop(bleep2Stream);
+            bleep2Clip.stop();
+            bleep2Clip.close();
             this.resetAudio();
-            AudioPlayer.player.start(bleep2Stream);
+            bleep2Clip.start();
         } catch (Exception e) {
             //e.printStackTrace();
         }
@@ -489,9 +501,10 @@ public class MainController {
 
         // when running on local dev.
         try {
-            AudioPlayer.player.stop(alertSirenStream);
+            alertSirenClip.stop();
+            alertSirenClip.close();
             this.resetAudio();
-            AudioPlayer.player.start(alertSirenStream);
+            alertSirenClip.start();
         } catch (Exception e) {
             //e.printStackTrace();
         }
